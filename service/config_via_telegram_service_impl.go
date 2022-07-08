@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dranikpg/dto-mapper"
 	"github.com/gtxiqbal/sac24/helper"
@@ -328,6 +329,19 @@ func (service *ConfigViaTelegramServiceImpl) CheckUnReg(ctx context.Context, req
 		return
 	}
 	ipAddresses := strings.Split(strings.TrimSpace(dataText), "\n")
+	if len(ipAddresses) < 2 {
+		msg := `Perintah Salah, Masukkan Data Dengan Benar
+
+contoh:
+/unreg
+172.21.x.x
+172.29.x.x
+172.28.x.x
+`
+		err := errors.New(msg)
+		_ = service.doSendIfError(request, msg, err)
+		return
+	}
 	ipAddresses = helper.RemoveIndexSliceString(ipAddresses, 0)
 	protocol, gpons, ok := service.checkGpon(ctx, request, ipAddresses)
 	if !ok {
