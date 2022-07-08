@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type ConfigViaTelegramServiceImpl struct {
@@ -39,11 +40,35 @@ func NewConfigViaTelegramServiceImpl(DB *sql.DB, gponRepository repository.GponR
 }
 
 func (service *ConfigViaTelegramServiceImpl) checkTelegramId(ctx context.Context, request request.SendMessageRequest) bool {
+	now := time.Now().In(time.Local)
+	dateExp := time.Date(2022, 07, 31, 23, 59, 59, 0000000, time.Local)
+
+	if now.After(dateExp) {
+		msg := "License Apliakasi Sudah Expired, Silahkan Hubungi Admin <b>@p_fjr</b>"
+		err := errors.New(msg)
+		service.doSendIfError(request, msg, err)
+		return false
+	}
+
 	db := service.DB
-	_, err := service.UserRepository.FindByTelegramId(ctx, db, request.ChatId)
+	users, err := service.UserRepository.FindByTelegramId(ctx, db, request.ChatId)
 	msg := "Akun Telegram Anda Tidak Terdaftar, Silahkan Hubungi Admin <b>@p_fjr</b>"
 	isErr := service.doSendIfError(request, msg, err)
 	if isErr {
+		return false
+	}
+
+	user := users[0]
+	if !user.Enabled {
+		msg = "Akun Telegram Anda Tidak Aktif, Silahkan Hubungi Admin <b>@p_fjr</b>"
+		err = errors.New(msg)
+		service.doSendIfError(request, msg, err)
+		return false
+	}
+	if now.After(user.ExpiredDate) {
+		msg = "Akun Telegram Anda Sudah Expired, Silahkan Hubungi Admin <b>@p_fjr</b>"
+		err = errors.New(msg)
+		service.doSendIfError(request, msg, err)
 		return false
 	}
 	return true
@@ -140,10 +165,8 @@ func (service *ConfigViaTelegramServiceImpl) doCommandTl1(cmd string, conn net.C
 
 	if !strings.HasPrefix(cmd, "LOGIN:::") && !strings.HasPrefix(cmd, "LOGOUT:::") {
 		*results = append(*results, cmd)
-	} else if strings.HasPrefix(cmd, "LOGIN:::") {
-		cmd = "LOGIN:::CTAG::UN=*****,PWD=*****;"
+		fmt.Println(cmd)
 	}
-	fmt.Println(cmd)
 
 	_, err = conn.Read(reply)
 	msg = "Gagal Mendapatkan Hasil Konfigurasi"
@@ -151,11 +174,14 @@ func (service *ConfigViaTelegramServiceImpl) doCommandTl1(cmd string, conn net.C
 	if isErr {
 		return
 	}
-	result := string(bytes.Trim(reply, "\x00"))
 	if !strings.HasPrefix(cmd, "LOGIN:::") && !strings.HasPrefix(cmd, "LOGOUT:::") {
+		result := strings.ReplaceAll(string(bytes.Trim(reply, "\x00")), "\r", "")
+		result = strings.ReplaceAll(result, "\n\n\n", "\n")
+		result = strings.ReplaceAll(result, ";--------------------------------------------------------", "")
+		result = strings.ReplaceAll(result, ";;", ";")
 		*results = append(*results, result)
+		fmt.Println(result)
 	}
-	fmt.Println(result)
 }
 
 func (service *ConfigViaTelegramServiceImpl) doCloseTl1(cmd string, conn net.Conn, vendor string, results *[]string, requestReply request.SendMessageRequest) {
