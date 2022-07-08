@@ -8,17 +8,18 @@ import (
 	"time"
 )
 
-func NewPG(dbDriver, dbHost, dbName, dbUsername, dbPassword string, dbPort int) *sql.DB {
+func NewPG(dbDriver, dbHost, dbName, dbUsername, dbPassword string,
+	dbPort, dbMaxIdleConn, dbMaxOpenConn, dbConnMaxIdleTime, dbConnMaxLifeTime int) *sql.DB {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUsername, dbPassword, dbName)
 	db, err := sql.Open(dbDriver, psqlInfo)
 	helper.PanicIfError(err)
 
-	db.SetMaxIdleConns(50)
-	db.SetMaxOpenConns(100)
-	db.SetConnMaxIdleTime(10 * time.Minute)
-	db.SetConnMaxLifetime(60 * time.Minute)
+	db.SetMaxIdleConns(dbMaxIdleConn)
+	db.SetMaxOpenConns(dbMaxOpenConn)
+	db.SetConnMaxIdleTime(time.Duration(dbConnMaxIdleTime) * time.Minute)
+	db.SetConnMaxLifetime(time.Duration(dbConnMaxLifeTime) * time.Minute)
 
 	return db
 }

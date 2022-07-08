@@ -34,10 +34,24 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	dbUsername := os.Getenv("DB_USERNAME")
 	dbPassword := os.Getenv("DB_PASSWORD")
+
 	dbPort, err := strconv.Atoi(os.Getenv("DB_PORT"))
 	helper.PanicIfError(err)
 
-	db := config.NewPG(dbDriver, dbHost, dbName, dbUsername, dbPassword, dbPort)
+	dbMaxIdleConn, err := strconv.Atoi(os.Getenv("DB_MAX_IDLE_CONN"))
+	helper.PanicIfError(err)
+
+	dbMaxOpenConn, err := strconv.Atoi(os.Getenv("DB_MAX_OPEN_CONN"))
+	helper.PanicIfError(err)
+
+	dbConnMaxIdleTime, err := strconv.Atoi(os.Getenv("DB_CONN_MAX_IDLE_TIME"))
+	helper.PanicIfError(err)
+
+	dbConnMaxLifeTime, err := strconv.Atoi(os.Getenv("DB_CONN_MAX_LIFE_TIME"))
+	helper.PanicIfError(err)
+
+	db := config.NewPG(dbDriver, dbHost, dbName, dbUsername, dbPassword,
+		dbPort, dbMaxIdleConn, dbMaxOpenConn, dbConnMaxIdleTime, dbConnMaxLifeTime)
 
 	regionalRepository := repository.NewRegionalRepositoryImpl()
 	regionalService := service.NewRegionalServiceImpl(db, regionalRepository)
